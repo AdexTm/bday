@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Birthday Quest</title>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #121212; color: white; margin: 0; padding: 20px; }
+        #goal-image { width: 200px; border: 3px solid #00ff88; border-radius: 10px; margin-bottom: 10px; }
+        #container { position: relative; width: 100%; max-width: 640px; aspect-ratio: 4/3; background: #000; border-radius: 15px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .instructions { font-size: 1.2rem; margin-bottom: 15px; text-align: center; color: #00ff88; }
+        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,255,136,0.9); z-index: 100; justify-content: center; align-items: center; font-size: 3rem; color: black; font-weight: bold; }
+        #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e1e; padding: 30px; border-radius: 20px; border: 2px solid #00ff88; z-index: 101; text-align: center; width: 300px; }
+        .code-box { background: #333; padding: 10px; margin: 15px 0; font-family: monospace; border: 1px dashed #00ff88; color: #00ff88; }
+        button { padding: 10px 20px; cursor: pointer; background: #00ff88; color: black; border: none; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="instructions">Сделай такое же лицо, чтобы забрать подарок!</div>
+    <img src="goal.jpg" id="goal-image">
+
+    <div id="container">
+        <video id="video" autoplay muted playsinline></video>
+    </div>
+
+    <div id="overlay">ДРУГ НАЙДЕН!</div>
+
+    <div id="modal">
+        <h2>🥳 С Днём Рождения!</h2>
+        <p>Твой секретный код:</p>
+        <div class="code-box" id="promoCode">RA-4665UMBETK7WPETK</div>
+        <button onclick="copyCode()">Копировать код</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        
+        async function setup() {
+            // Используем CDN для моделей, чтобы другу не нужно было качать папку models
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+            
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Камера недоступна при обычном открытии файла. Попробуй открыть через Firefox или загрузи на GitHub Pages!");
+            }
+        }
+
+        video.addEventListener('play', () => {
+            setInterval(async () => {
+                if (video.paused) return;
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+                if (detections.length > 0 && detections[0].expressions.surprised > 0.6) {
+                    video.pause();
+                    document.getElementById('overlay').style.display = 'flex';
+                    setTimeout(() => {
+                        document.getElementById('overlay').style.display = 'none';
+                        document.getElementById('modal').style.display = 'block';
+                    }, 2000);
+                }
+            }, 300);
+        });
+
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('promoCode').innerText);
+            alert('Код скопирован!');
+        }
+
+        setup();
+    </script>
+</body>
+</html>
