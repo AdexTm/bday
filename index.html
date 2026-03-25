@@ -5,23 +5,25 @@
     <title>Birthday Quest</title>
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #0f0f0f; color: white; margin: 0; padding: 20px; }
-        #goal-image { width: 180px; border: 3px solid #00ff88; border-radius: 12px; margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background: #0f0f0f; color: white; margin: 0; padding: 20px; }
+        #goal-image { width: 180px; border: 3px solid #00ff88; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
         #container { position: relative; width: 100%; max-width: 640px; aspect-ratio: 4/3; background: #1a1a1a; border-radius: 20px; overflow: hidden; border: 2px solid #333; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        #loading-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff88; font-weight: bold; text-align: center; }
+        #loading-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff88; font-weight: bold; text-align: center; z-index: 10; }
         #overlay { display: none; position: fixed; inset: 0; background: rgba(0, 255, 136, 0.9); z-index: 100; justify-content: center; align-items: center; font-size: 3rem; color: black; font-weight: bold; }
-        #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e1e; padding: 30px; border-radius: 20px; border: 2px solid #00ff88; z-index: 101; text-align: center; width: 300px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        .code-box { background: #000; padding: 15px; margin: 20px 0; font-family: monospace; border: 1px dashed #00ff88; color: #00ff88; font-size: 1.1rem; }
+        #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e1e; padding: 30px; border-radius: 20px; border: 2px solid #00ff88; z-index: 101; text-align: center; width: 320px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .code-box { background: #000; padding: 15px; margin: 20px 0; font-family: 'Courier New', monospace; border: 1px dashed #00ff88; color: #00ff88; font-size: 1.1rem; cursor: pointer; }
+        .copy-btn { padding: 12px 25px; cursor: pointer; background: #00ff88; color: black; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; transition: 0.3s; }
+        .copy-btn:hover { background: #00cc6e; transform: scale(1.05); }
     </style>
 </head>
 <body>
 
-    <h3 style="color: #00ff88; text-align: center;">Сделай такое же лицо, чтобы забрать подарок!</h3>
+    <h3 style="color: #00ff88; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Повтори лицо — получи подарок</h3>
     <img src="goal.jpg" id="goal-image">
 
     <div id="container">
-        <div id="loading-status">Загрузка нейросети...<br>(это может занять 5-10 сек)</div>
+        <div id="loading-status">Инициализация систем...<br>(подожди 5-10 сек)</div>
         <video id="video" autoplay muted playsinline></video>
     </div>
 
@@ -29,9 +31,9 @@
 
     <div id="modal">
         <h2 style="margin-top:0">🎂 С Днём Рождения!</h2>
-        <p>Доступ разрешен. Твой код:</p>
-        <div class="code-box">RA-4665UMBETK7WPETK</div>
-        <button onclick="location.reload()" style="padding: 10px 20px; cursor: pointer; background: #00ff88; border: none; border-radius: 5px; font-weight: bold;">Попробовать снова</button>
+        <p>Кодик для додика:</p>
+        <div class="code-box" id="promoCode">RA-4665UMBETK7WPETK</div>
+        <button class="copy-btn" onclick="copyCode()">Копировать код</button>
     </div>
 
     <script>
@@ -40,8 +42,7 @@
 
         async function init() {
             try {
-                // Загружаем модели напрямую из твоего репозитория
-                // Важно: точка перед /models обязательна для GitHub Pages
+                // Загружаем модели face-api.js
                 await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
                 await faceapi.nets.faceExpressionNet.loadFromUri('./models');
                 
@@ -55,7 +56,7 @@
                     startDetection();
                 };
             } catch (err) {
-                loadingStatus.innerHTML = "Ошибка доступа к камере или моделям.<br>Убедись, что папка 'models' загружена на GitHub.";
+                loadingStatus.innerHTML = "Ошибка: Камера заблокирована или модели не найдены.";
                 console.error(err);
             }
         }
@@ -71,17 +72,31 @@
 
                 if (detections.length > 0) {
                     const expressions = detections[0].expressions;
-                    // Если лицо "удивленное" (вытянутые губы часто так считываются)
+                    // Распознавание мимики: удивление (вытянутые губы)
                     if (expressions.surprised > 0.4 || expressions.neutral < 0.2) {
                         video.pause();
                         document.getElementById('overlay').style.display = 'flex';
                         setTimeout(() => {
                             document.getElementById('overlay').style.display = 'none';
                             document.getElementById('modal').style.display = 'block';
-                        }, 2000);
+                        }, 1500);
                     }
                 }
             }, 400);
+        }
+
+        // Функция копирования кода в буфер обмена
+        function copyCode() {
+            const codeText = document.getElementById('promoCode').innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.innerText = 'Скопировано!';
+                btn.style.background = '#ffffff';
+                setTimeout(() => {
+                    btn.innerText = 'Копировать код';
+                    btn.style.background = '#00ff88';
+                }, 2000);
+            });
         }
 
         init();
